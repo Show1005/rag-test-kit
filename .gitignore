@@ -15,3 +15,7 @@ __pycache__/
 *.pyc
 # ChromaベクトルDBの永続化ディレクトリ
 chroma_db/
+
+history.json
+
+knowledge/
