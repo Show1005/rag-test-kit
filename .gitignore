@@ -1,0 +1,15 @@
+# 仮想環境
+.venv/
+
+# 環境変数
+.env
+
+# 出力レポート
+output/
+
+# Jupyter関連（必要に応じて）
+.ipynb_checkpoints/
+
+# Pythonキャッシュ
+__pycache__/
+*.pyc
