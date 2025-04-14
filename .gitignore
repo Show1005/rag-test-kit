@@ -13,3 +13,5 @@ output/
 # Pythonキャッシュ
 __pycache__/
 *.pyc
+# ChromaベクトルDBの永続化ディレクトリ
+chroma_db/

@@ -15,6 +15,8 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 embedding = OpenAIEmbeddings(model="text-embedding-3-small", dimensions=1536)
 
+PERSIST_DIR = "chroma_db"
+
 # ナレッジ読込（JSON + Markdown対応）
 def load_knowledge(folder_path: str):
     tag_set = set()
@@ -50,7 +52,7 @@ def ask_gpt(knowledge, query):
     context = "\n\n".join([doc.page_content for doc, _ in knowledge])
     prompt = f"""
     あなたは探索型テストの専門家です。
-    以下のナレッジと質問を参考に、具体的なテスト観点を5つ挙げてください。
+    以下のナレッジと質問を参考に、具体的なテスト観点を5つ、番号付き箇条書きで挙げてください。
 
     ナレッジ:
     {context}
@@ -87,34 +89,44 @@ def main():
 
     with st.spinner("ナレッジを読み込み中..."):
         docs, all_tags = load_knowledge("knowledge")
-        db = Chroma.from_documents(docs, embedding=embedding, collection_name="rag-ui")
+        db = Chroma.from_documents(docs, embedding=embedding, collection_name="rag-ui", persist_directory=PERSIST_DIR)
+        db.persist()
 
-    query = st.text_input("質問を入力", value="ログインフォームの異常系テスト")
-    selected_tags = st.multiselect("タグで絞り込み（JSONのみ）", options=all_tags)
+    tab1, tab2 = st.tabs(["🔍 検索と生成", "📁 設定・状態"])
 
-    if st.button("🔍 検索 & 生成") and query:
-        with st.spinner("検索中..."):
-            filtered_docs = [doc for doc in docs if all(tag in doc.metadata.get("tags", "") for tag in selected_tags)]
-            tmp_db = Chroma.from_documents(filtered_docs, embedding=embedding, collection_name="tmp") if selected_tags else db
-            results = search_knowledge(tmp_db, query, k=3)
+    with tab1:
+        query = st.text_input("質問を入力", value="ログインフォームの異常系テスト")
+        selected_tags = st.multiselect("タグで絞り込み（JSONのみ）", options=all_tags)
 
-        st.subheader("📚 類似ナレッジ")
-        for i, (doc, score) in enumerate(results):
-            st.markdown(f"**{i+1}. {doc.metadata.get('title')}**  ")
-            st.markdown(f"スコア: `{score:.4f}`")
-            st.markdown(f"タグ: {doc.metadata.get('tags')}")
-            st.markdown(doc.page_content)
-            st.markdown("---")
+        if st.button("🔍 検索 & 生成") and query:
+            with st.spinner("検索中..."):
+                filtered_docs = [doc for doc in docs if all(tag in doc.metadata.get("tags", "") for tag in selected_tags)]
+                tmp_db = Chroma.from_documents(filtered_docs, embedding=embedding, collection_name="tmp", persist_directory=PERSIST_DIR) if selected_tags else db
+                results = search_knowledge(tmp_db, query, k=3)
 
-        with st.spinner("ChatGPTで回答中..."):
-            answer = ask_gpt(results, query)
+            st.subheader("📚 類似ナレッジ")
+            for i, (doc, score) in enumerate(results):
+                st.markdown(f"**{i+1}. {doc.metadata.get('title')}**  ")
+                st.markdown(f"スコア: `{score:.4f}`")
+                st.markdown(f"タグ: {doc.metadata.get('tags')}")
+                st.markdown(doc.page_content)
+                st.markdown("---")
 
-        st.subheader("🧠 ChatGPTの回答")
-        st.markdown(answer)
+            with st.spinner("ChatGPTで回答中..."):
+                answer = ask_gpt(results, query)
 
-        if st.button("💾 Markdownとして保存"):
-            path = save_report(query, results, answer)
-            st.success(f"保存しました: {path}")
+            st.subheader("🧠 ChatGPTの回答")
+            st.markdown(answer)
+
+            if st.button("💾 Markdownとして保存"):
+                path = save_report(query, results, answer)
+                st.success(f"保存しました: {path}")
+
+    with tab2:
+        st.write("📦 ベクトルDBの永続化パス:", PERSIST_DIR)
+        st.write(f"🧾 ナレッジ数: {len(docs)} 件")
+        st.write("📁 タグ一覧:")
+        st.write(", ".join(all_tags))
 
 if __name__ == "__main__":
     main()
