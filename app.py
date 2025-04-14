@@ -26,18 +26,20 @@ def load_knowledge(folder_path: str):
     tag_set = set()
     documents = []
     usage_counter = defaultdict(int)
+    file_map = defaultdict(list)
     for filepath in Path(folder_path).glob("**/*"):
         if filepath.suffix == ".json":
             with open(filepath, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                for item in data:
+                for i, item in enumerate(data):
                     tags = item.get("tags", [])
                     tag_set.update(tags)
                     doc = Document(
                         page_content=item["content"],
-                        metadata={"title": item.get("title"), "tags": ", ".join(tags)}
+                        metadata={"title": item.get("title"), "tags": ", ".join(tags), "file": filepath.name, "index": i}
                     )
                     documents.append(doc)
+                    file_map[filepath.name].append(item)
         elif filepath.suffix == ".md":
             with open(filepath, "r", encoding="utf-8") as f:
                 content = f.read()
@@ -46,7 +48,7 @@ def load_knowledge(folder_path: str):
                     metadata={"title": filepath.stem, "tags": "markdown"}
                 )
                 documents.append(doc)
-    return documents, sorted(tag_set)
+    return documents, sorted(tag_set), file_map
 
 # 類似ナレッジ検索（スコア付き）
 def search_knowledge(db, query, k=3):
@@ -85,16 +87,20 @@ def generate_knowledge_body(title, tags):
     return res.choices[0].message.content
 
 # ナレッジ保存
-def save_knowledge_json(title, tags, content):
+def save_knowledge_json(title, tags, content, filename=None, index=None):
     os.makedirs(KNOWLEDGE_DIR, exist_ok=True)
-    filename = f"{datetime.now().strftime('%Y%m%d')}_custom.json"
+    if not filename:
+        filename = f"{datetime.now().strftime('%Y%m%d')}_custom.json"
     path = os.path.join(KNOWLEDGE_DIR, filename)
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
     else:
         data = []
-    data.append({"title": title, "tags": tags, "content": content})
+    if index is not None and 0 <= index < len(data):
+        data[index] = {"title": title, "tags": tags, "content": content}
+    else:
+        data.append({"title": title, "tags": tags, "content": content})
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     return path
@@ -131,11 +137,11 @@ def main():
     st.title("🧠 RAG探索型テスト観点ジェネレーター")
 
     with st.spinner("ナレッジを読み込み中..."):
-        docs, all_tags = load_knowledge(KNOWLEDGE_DIR)
+        docs, all_tags, file_map = load_knowledge(KNOWLEDGE_DIR)
         db = Chroma.from_documents(docs, embedding=embedding, collection_name="rag-ui", persist_directory=PERSIST_DIR)
         db.persist()
 
-    tab1, tab2, tab3 = st.tabs(["🔍 検索と生成", "📝 ナレッジ登録", "📊 状態・履歴"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🔍 検索と生成", "📝 ナレッジ登録", "📊 状態・履歴", "✏️ 編集・削除"])
 
     with tab1:
         query = st.text_input("質問を入力", value="ログインフォームの異常系テスト")
@@ -196,6 +202,31 @@ def main():
             with open(HISTORY_FILE, "r", encoding="utf-8") as f:
                 for item in json.load(f)[::-1]:
                     st.markdown(f"- {item['query']} ({item['timestamp'][:19]})")
+
+    with tab4:
+        st.markdown("### ✏️ ナレッジの編集・削除")
+        selected_file = st.selectbox("ファイルを選択", list(file_map.keys()))
+        if selected_file:
+            items = file_map[selected_file]
+            titles = [item["title"] for item in items]
+            selected_index = st.selectbox("ナレッジを選択", list(enumerate(titles)), format_func=lambda x: x[1])
+            if selected_index:
+                idx = selected_index[0]
+                item = items[idx]
+                new_title = st.text_input("タイトル", value=item["title"], key="edit_title")
+                new_tags = st.text_input("タグ（カンマ区切り）", value=", ".join(item.get("tags", [])), key="edit_tags")
+                new_content = st.text_area("本文", value=item["content"], height=200, key="edit_content")
+
+                if st.button("💾 編集内容を保存"):
+                    save_knowledge_json(new_title, [t.strip() for t in new_tags.split(",")], new_content, filename=selected_file, index=idx)
+                    st.success("ナレッジを更新しました")
+
+                if st.button("🗑️ このナレッジを削除"):
+                    del items[idx]
+                    save_knowledge_json("", [], "", filename=selected_file, index=None)  # 保存のトリガー用
+                    with open(os.path.join(KNOWLEDGE_DIR, selected_file), "w", encoding="utf-8") as f:
+                        json.dump(items, f, ensure_ascii=False, indent=2)
+                    st.success("ナレッジを削除しました")
 
 if __name__ == "__main__":
     main()
