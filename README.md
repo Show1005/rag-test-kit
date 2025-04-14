@@ -11,9 +11,13 @@
 
 
 ## 使い方
+.envに以下設定
+```
+OPENAI_API_KEY=xxxxxxxxx(openAiのapiキーを取得して設定してください(課金しないと使えません))
+```
 
 ```
-python main.py --query "ログインフォームの異常系テスト" --tags バリデーション 入力系
+streamlit run app.py
 ```
 
 ## 出力例
