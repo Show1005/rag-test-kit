@@ -8,3 +8,14 @@
 - ChatGPT（gpt-3.5-turbo）による観点生成
 - タグフィルタ、検索スコア表示
 - Markdown / HTML 出力
+
+
+## 使い方
+
+```
+python main.py --query "ログインフォームの異常系テスト" --tags バリデーション 入力系
+```
+
+## 出力例
+output/ログインフォームの異常系テスト.md
+output/ログインフォームの異常系テスト.html
