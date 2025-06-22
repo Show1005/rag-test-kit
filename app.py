@@ -1,8 +1,7 @@
 import os
 import json
 import streamlit as st
-from dotenv import load_dotenv
-from openai import OpenAI
+from rag_utils.openai_client import get_openai_client
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
@@ -12,8 +11,7 @@ import markdown
 from collections import defaultdict
 
 # 初期化
-load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = get_openai_client()
 embedding = OpenAIEmbeddings(model="text-embedding-3-small", dimensions=1536)
 
 PERSIST_DIR = "chroma_db"
