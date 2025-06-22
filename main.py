@@ -1,19 +1,15 @@
 import os
 import json
 import argparse
-from dotenv import load_dotenv
-from openai import OpenAI
+from rag_utils.openai_client import get_openai_client
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
 from pathlib import Path
 import markdown
 
-# 環境変数読み込み
-load_dotenv()
-
 # OpenAIクライアント初期化
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = get_openai_client()
 
 # Embeddingモデル初期化（節約版）
 embedding = OpenAIEmbeddings(
