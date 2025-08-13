@@ -68,7 +68,7 @@ def ask_gpt(knowledge, query):
     {query}
     """
     res = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-5-nano",
         messages=[{"role": "user", "content": prompt}]
     )
     return res.choices[0].message.content
@@ -81,7 +81,7 @@ def generate_knowledge_body(title, tags):
     この情報をもとに、探索的テストで役立つナレッジ文章を作成してください。
     """
     res = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-5-nano",
         messages=[{"role": "user", "content": prompt}]
     )
     return res.choices[0].message.content
@@ -133,7 +133,19 @@ def save_history(query):
 
 # Streamlit UI
 def main():
-    st.set_page_config(page_title="RAG Test App", layout="wide")
+    st.set_page_config(page_title="RAG Test App", page_icon="🧠", layout="wide")
+
+    if "query" not in st.session_state:
+        st.session_state["query"] = "ログインフォームの異常系テスト"
+
+    with st.sidebar:
+        st.header("📜 検索履歴")
+        if os.path.exists(HISTORY_FILE):
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                for item in json.load(f)[::-1]:
+                    if st.button(item["query"]):
+                        st.session_state["query"] = item["query"]
+
     st.title("🧠 RAG探索型テスト観点ジェネレーター")
 
     with st.spinner("ナレッジを読み込み中..."):
@@ -144,7 +156,7 @@ def main():
     tab1, tab2, tab3, tab4 = st.tabs(["🔍 検索と生成", "📝 ナレッジ登録", "📊 状態・履歴", "✏️ 編集・削除"])
 
     with tab1:
-        query = st.text_input("質問を入力", value="ログインフォームの異常系テスト")
+        query = st.text_input("質問を入力", key="query")
         selected_tags = st.multiselect("タグで絞り込み（JSONのみ）", options=all_tags)
 
         if st.button("🔍 検索 & 生成") and query:
@@ -155,11 +167,9 @@ def main():
 
             st.subheader("📚 類似ナレッジ")
             for i, (doc, score) in enumerate(results):
-                st.markdown(f"**{i+1}. {doc.metadata.get('title')}**  ")
-                st.markdown(f"スコア: `{score:.4f}`")
-                st.markdown(f"タグ: {doc.metadata.get('tags')}")
-                st.markdown(doc.page_content)
-                st.markdown("---")
+                with st.expander(f"{i+1}. {doc.metadata.get('title')} (score: {score:.4f})"):
+                    st.markdown(f"**タグ:** {doc.metadata.get('tags')}")
+                    st.markdown(doc.page_content)
 
             with st.spinner("ChatGPTで回答中..."):
                 answer = ask_gpt(results, query)
