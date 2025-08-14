@@ -69,7 +69,7 @@ def ask_gpt(knowledge, query):
     {query}
     """
     res = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-5-nano",
         messages=[{"role": "user", "content": prompt}]
     )
     return res.choices[0].message.content

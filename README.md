@@ -5,9 +5,11 @@
 ## 機能
 
 - JSON / Markdown ナレッジの読み込み
-- ChatGPT（gpt-3.5-turbo）による観点生成
+- ChatGPT（gpt-5-nano）による観点生成
 - タグフィルタ、検索スコア表示
 - Markdown / HTML 出力
+- サイドバーで検索履歴を表示
+- 類似ナレッジは折りたたみカードで表示し、UIを改善
 
 
 ## 使い方
